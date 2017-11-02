@@ -1,5 +1,8 @@
 package de.tuda.sdm.dmdb.storage.types.exercise;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
 import de.tuda.sdm.dmdb.storage.types.SQLVarcharBase;
 
 /**
@@ -28,14 +31,16 @@ public class SQLVarchar extends SQLVarcharBase {
 	
 	@Override
 	public byte[] serialize() {
-		//TODO: implement this method
-		return null;
+		byte[] result = new byte[4];
+		result = this.value.getBytes(StandardCharsets.UTF_8); 
+		System.out.println(Arrays.toString(result));
+		return result;
 	}
 
 	@Override
 	public void deserialize(byte[] data) {
-		//TODO: implement this method
-		//this.value = ?
+		String s = new String(data);
+		this.value = s;
 	}
 	
 	@Override
