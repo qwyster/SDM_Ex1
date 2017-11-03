@@ -31,16 +31,12 @@ public class SQLVarchar extends SQLVarcharBase {
 	
 	@Override
 	public byte[] serialize() {
-		byte[] result = new byte[4];
-		result = this.value.getBytes(StandardCharsets.UTF_8); 
-		System.out.println(Arrays.toString(result));
-		return result;
+		return this.value.getBytes(StandardCharsets.UTF_8);
 	}
 
 	@Override
 	public void deserialize(byte[] data) {
-		String s = new String(data);
-		this.value = s;
+		this.value = new String(data);
 	}
 	
 	@Override

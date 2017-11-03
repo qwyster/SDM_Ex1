@@ -6,39 +6,42 @@ import de.tuda.sdm.dmdb.storage.types.SQLIntegerBase;
 
 /**
  * SQL integer value
+ * 
  * @author cbinnig
  *
  */
 public class SQLInteger extends SQLIntegerBase {
-	
+
 	/**
 	 * Constructor with default value
 	 */
-	public SQLInteger(){
+	public SQLInteger() {
 		super();
 	}
-	
+
 	/**
 	 * Constructor with value
-	 * @param value Integer value
+	 * 
+	 * @param value
+	 *            Integer value
 	 */
-	public SQLInteger(int value){
+	public SQLInteger(int value) {
 		super(value);
 	}
-	
+
 	@Override
 	public byte[] serialize() {
 		byte[] result = new byte[4];
 		result[3] = (byte) this.value;
-		
+
 		result[2] = (byte) (this.value >> 8);
-		
+
 		result[1] = (byte) (this.value >> 16);
-		
+
 		result[0] = (byte) (this.value >> 24);
-		System.out.println(Arrays.toString(result));
+		// System.out.println(Arrays.toString(result));
 		return result;
-		
+
 	}
 
 	@Override
@@ -47,15 +50,13 @@ public class SQLInteger extends SQLIntegerBase {
 		x = x | (Byte.toUnsignedInt(data[1])) << 16;
 		x = x | (Byte.toUnsignedInt(data[2])) << 8;
 		x = x | (Byte.toUnsignedInt(data[3]));
-		
-		
-		System.out.println(x);
+
+//		System.out.println(x);
 		this.value = x;
 	}
-	
-	
+
 	@Override
-	public SQLInteger clone(){
+	public SQLInteger clone() {
 		return new SQLInteger(this.value);
 	}
 
