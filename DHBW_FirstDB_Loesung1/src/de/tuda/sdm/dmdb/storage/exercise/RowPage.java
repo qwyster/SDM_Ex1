@@ -21,12 +21,20 @@ public class RowPage extends AbstractPage {
 	@Override
 	public void insert(int slotNumber, AbstractRecord record, boolean doInsert) {
 		if (doInsert) {
-			// shift right existing records
+			if (!recordFitsIntoPage(record)) {
+				throw new RuntimeException("Record not fit to current page");
+			} else {
+				// shift right existing records
 
-			// insert new record
-
+				// insert new record
+			}
 		} else { // overwrite existing record
-
+			// fix sized 
+			int offsetToFixSizeAttribute = slotNumber * record.getFixedLength();
+			
+			// var sized
+			int offsetToVarSizeAttribute = data.length - HEADER_SIZE - 1 - slotNumber * record.getVariableLength();
+		
 		}
 	}
 
@@ -57,7 +65,8 @@ public class RowPage extends AbstractPage {
 			throw new RuntimeException("Slot empty!");
 		} else {
 			int offsetToFixSizeAttribute = slotNumber * record.getFixedLength();
-			//int offsetToVarSizeAttribute = offsetEnd + (numRecords - 1 - slotNumber) * record.getVariableLength();
+			// int offsetToVarSizeAttribute = offsetEnd + (numRecords - 1 - slotNumber) *
+			// record.getVariableLength();
 			int offsetToVarSizeAttribute = data.length - HEADER_SIZE - 1 - slotNumber * record.getVariableLength();
 			// read columns
 			for (AbstractSQLValue val : record.getValues()) {
