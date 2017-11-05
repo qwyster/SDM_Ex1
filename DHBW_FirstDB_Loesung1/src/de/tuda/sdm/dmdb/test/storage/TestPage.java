@@ -1,5 +1,7 @@
 package de.tuda.sdm.dmdb.test.storage;
 
+import java.util.Arrays;
+
 import org.junit.Assert;
 
 import de.tuda.sdm.dmdb.storage.AbstractPage;
@@ -15,30 +17,34 @@ import de.tuda.sdm.dmdb.test.TestCase;
 public class TestPage extends TestCase{
 	public void testInsertRecord(){
 		//insert record
-		AbstractRecord r1 = new Record(2);
+		AbstractRecord r1 = new Record(3);
 		r1.setValue(0, new SQLInteger(123456789));
 		r1.setValue(1, new SQLVarchar("Test", 10));
+		r1.setValue(2, new SQLVarchar("Testabc", 10));
 		
+		AbstractRecord r2 = new Record(3);
+		r2.setValue(0, new SQLInteger(123456789));
+		r2.setValue(1, new SQLVarchar("Test", 10));
+		r2.setValue(2, new SQLVarchar("Testwegg", 10));
 		AbstractPage p = new RowPage(r1.getFixedLength());
 		p.insert(r1);
+		p.insert(r2);
 		//read record
-		AbstractRecord r1cmp = new Record(2);
+		AbstractRecord r1cmp = new Record(3);
 		r1cmp.setValue(0, new SQLInteger());
 		r1cmp.setValue(1, new SQLVarchar(10));
+		r1cmp.setValue(2, new SQLVarchar(10));
+		AbstractRecord r2cmp = new Record(3);
+		r2cmp.setValue(0, new SQLInteger());
+		r2cmp.setValue(1, new SQLVarchar(10));
+		r2cmp.setValue(2, new SQLVarchar(10));
+		
+		
 		p.read(0, r1cmp);
-		
-//		System.out.println("int fixed length = " + r1.getValue(0).getFixedLength());
-//		System.out.println("int var length = " + r1.getValue(0).getVariableLength());
-//		System.out.println("int max length = " + r1.getValue(0).getMaxLength());
-//		
-//		System.out.println("char fixed length = " + r1.getValue(1).getFixedLength());
-//		System.out.println("char var length = " + r1.getValue(1).getVariableLength());
-//		System.out.println("char max length = " + r1.getValue(1).getMaxLength());
-//		
-//		System.out.println("fixed length = " + r1.getFixedLength());
-//		System.out.println("var length = " + r1.getVariableLength());
-		
+		p.read(1, r2cmp);
 		//compare
 		Assert.assertEquals(r1, r1cmp);
+		Assert.assertEquals(r2, r2cmp);
+		
 	}
 }
