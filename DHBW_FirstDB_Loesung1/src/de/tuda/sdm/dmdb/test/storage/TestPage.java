@@ -27,29 +27,32 @@ public class TestPage extends TestCase{
 		r2.setValue(1, new SQLVarchar("Test", 10));
 		r2.setValue(2, new SQLVarchar("Testwegg", 10));
 		AbstractPage p = new RowPage(r1.getFixedLength());
+		
 		p.insert(r1);
 		p.insert(r2);
+
 		AbstractRecord rx = new Record(3);
 		rx.setValue(0, new SQLInteger(536457474));
 		rx.setValue(1, new SQLVarchar("dsfh", 10));
-		rx.setValue(2, new SQLVarchar("dfgdgdg", 10));
+		rx.setValue(2, new SQLVarchar("dfgdgdgg", 10));
 		p.insert(1,rx,false);
+		
 		//read record
 		AbstractRecord r1cmp = new Record(3);
 		r1cmp.setValue(0, new SQLInteger());
 		r1cmp.setValue(1, new SQLVarchar(10));
 		r1cmp.setValue(2, new SQLVarchar(10));
+		
 		AbstractRecord r2cmp = new Record(3);
 		r2cmp.setValue(0, new SQLInteger());
 		r2cmp.setValue(1, new SQLVarchar(10));
 		r2cmp.setValue(2, new SQLVarchar(10));
 		
-		
 		p.read(0, r1cmp);
 		p.read(1, r2cmp);
+		
 		//compare
 		Assert.assertEquals(r1, r1cmp);
 		Assert.assertEquals(rx, r2cmp);
-		
 	}
 }

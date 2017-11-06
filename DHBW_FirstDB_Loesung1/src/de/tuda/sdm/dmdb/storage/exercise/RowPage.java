@@ -20,8 +20,46 @@ public class RowPage extends AbstractPage {
 	public RowPage(int slotSize) {
 		super(slotSize);
 	}
-	private HashMap<Integer, Vector<Integer>> map= new HashMap<Integer,Vector<Integer>>();
-	
+
+	private HashMap<Integer, Vector<Integer>> map = new HashMap<Integer, Vector<Integer>>(); // storing recordID with
+																								// offsets and real
+																								// width of each
+																								// var-sized attributes
+
+	private int get_size_of_fix_part_of_record(AbstractRecord record) {
+		int fixedAttSize = 0;
+		for (AbstractSQLValue val : record.getValues()) {
+			if (val.isFixedLength()) {
+				fixedAttSize += val.getFixedLength();
+			}
+		}
+		return fixedAttSize;
+	}
+
+	/**
+	 * @param record
+	 * @param location
+	 * @return a vector containing offsets of the given record
+	 */
+	private Vector<Integer> copy_record_to_given_location(int slotNumber, AbstractRecord record, int location) {
+		int fixedAttSize = get_size_of_fix_part_of_record(record);
+
+		Vector<Integer> new_offset_for_new_record = new Vector<Integer>();
+		for (int i = record.getValues().length - 1; i >= 0; i--) {
+			if (!record.getValue(i).isFixedLength()) {
+				System.arraycopy(record.getValue(i).serialize(), 0, this.data, location,
+						record.getValue(i).getVariableLength());
+				new_offset_for_new_record.insertElementAt(location, 0);
+				new_offset_for_new_record.insertElementAt(record.getValue(i).getVariableLength(), 1);
+				location += record.getValue(i).getVariableLength();
+			} else {
+				System.arraycopy(record.getValue(i).serialize(), 0, this.data,
+						slotNumber * fixedAttSize + fixedAttSize - record.getValue(i).getFixedLength(),
+						record.getValue(i).getFixedLength());
+			}
+		}
+		return new_offset_for_new_record;
+	}
 
 	@Override
 	public void insert(int slotNumber, AbstractRecord record, boolean doInsert) {
@@ -29,65 +67,88 @@ public class RowPage extends AbstractPage {
 			if (!recordFitsIntoPage(record)) {
 				throw new RuntimeException("Record not fit to current page");
 			} else {
-				// shift right existing records
+				// make place for the fix part
+				// get the sum of the width of the fix sized attributes
+				int fixedAttSize = get_size_of_fix_part_of_record(record);
+				// shift right the fixed part of the existing records
+				System.arraycopy(this.data, slotNumber * fixedAttSize, this.data, (slotNumber + 1) * fixedAttSize,
+						fixedAttSize);
+				offset += fixedAttSize;
 
+				// make place for the variable part
+				// shift left the other records from slotnr +1
+				int offset_to_slot_w_slotnr;
+				if (slotNumber >= 1) {
+					Vector<Integer> vec = map.get(slotNumber - 1);
+					offset_to_slot_w_slotnr = vec.get(vec.size() - 2);
+				} else {
+					offset_to_slot_w_slotnr = data.length - HEADER_SIZE;
+				}
+				System.arraycopy(this.data, offsetEnd, this.data, offsetEnd - record.getVariableLength(),
+						offset_to_slot_w_slotnr - offsetEnd + 1);
+				offsetEnd -= record.getVariableLength();
+
+				// update hashmap
+				for (int i = numRecords - 1; i >= slotNumber; i--) {
+					Vector<Integer> v = map.get(i);
+					for (int j = 0; j < v.size(); j = j + 2) {
+						v.set(j, v.get(j) - record.getVariableLength());
+					}
+					map.put(i + 1, v);
+				}
 				// insert new record
+				Vector<Integer> new_offset_for_new_record = copy_record_to_given_location(slotNumber, record,
+						offset_to_slot_w_slotnr - record.getVariableLength());
+				// update hashmap
+				map.put(slotNumber, new_offset_for_new_record);
+				numRecords++;
 			}
 		} else { // overwrite existing record
-			//Vector<Integer> v = new Vector<Integer>();
-			for (AbstractSQLValue value : record.getValues()) {
-				if (value.isFixedLength()) {
-					// copy the fixed-length part to begin of page
-					System.arraycopy(value.serialize(), 0, this.data, slotNumber*value.getFixedLength(), value.getFixedLength());
-				} else {
-				//	v.add(value.getVariableLength());
-					int a = record.getVariableLength();
-					int b = 0;
-					Vector<Integer> v = map.get(slotNumber);
-					int offset2 = v.get(v.size()-2);	// variable part of old record
-					for (int i = 1; i < v.size(); i= i+2) {
-						b+= v.get(i);
-					}
-					
-					int new_offset2 = offset2;
-					if (a>=b) {
-						for (int i = slotNumber+1; i < numRecords; i++) {
-							Vector<Integer> vec = map.get(i);
-							Vector<Integer> vecNew = new Vector<Integer>();
-							for (int j = 0; j < vec.size(); j = j+2) {
-								int x = vec.get(j);
-								vec.set(j, x - (a - b));
-							}
-						}
-						System.arraycopy(this.data, offsetEnd, this.data, offsetEnd - (a-b), offset2-offsetEnd+1);
-						new_offset2 -= a-b;
-					}
-					else {
-						for (int i = slotNumber+1; i < numRecords; i++) {
-							Vector<Integer> vec = map.get(i);
-							Vector<Integer> vecNew = new Vector<Integer>();
-							for (int j = 0; j < vec.size(); j = j+2) {
-								int x = vec.get(j);
-								vec.set(j, x + (b - a));
-							}
-						}
-						System.arraycopy(this.data, offsetEnd, this.data, offsetEnd + (b-a), offset2-offsetEnd+1);
-						new_offset2 += b-a;
-					}
-					//
-					int j = new_offset2;
-					Vector<Integer> new_offset_for_new_record = new Vector<Integer>();
-					int size = record.getValues().length;
-					for (int i = size-1; i >=0; i--){
-						System.arraycopy(record.getValue(i).serialize(), 0, this.data, j, record.getValue(i).getVariableLength());
-						new_offset_for_new_record.insertElementAt(j,0);
-						new_offset_for_new_record.insertElementAt(record.getValue(i).getVariableLength(),1);
-						j+=record.getValue(i).getVariableLength();
-					}
-					map.put(slotNumber, new_offset_for_new_record);
-				}
-				
+			// make place for the variable part of the new record
+			int newVariablePartLength = record.getVariableLength();
+			// extract the variable part's length of the old record
+			int oldVariablePartLength = 0;
+			Vector<Integer> v = map.get(slotNumber);
+			for (int i = 1; i < v.size(); i = i + 2) {
+				oldVariablePartLength += v.get(i);
 			}
+
+			int offset2 = v.get(v.size() - 2); // offset to the variable part of old record
+			int new_offset2 = offset2; // update offset pointing to the new position, from which the new record
+										// fits in
+
+			if (newVariablePartLength >= oldVariablePartLength) {
+				// update the hash map for records w. rid > slotnumber
+				for (int i = slotNumber + 1; i < numRecords; i++) {
+					Vector<Integer> vec = map.get(i);
+					for (int j = 0; j < vec.size(); j = j + 2) {
+						vec.set(j, vec.get(j) - (newVariablePartLength - oldVariablePartLength));
+					}
+					map.put(i, vec);
+				}
+				// shift left the other records
+				System.arraycopy(this.data, offsetEnd, this.data,
+						offsetEnd - (newVariablePartLength - oldVariablePartLength), offset2 - offsetEnd + 1);
+				new_offset2 -= newVariablePartLength - oldVariablePartLength;
+			} else {
+				// update the hash map for records w. rid > slotnumber
+				for (int i = slotNumber + 1; i < numRecords; i++) {
+					Vector<Integer> vec = map.get(i);
+					for (int j = 0; j < vec.size(); j = j + 2) {
+						vec.set(j, vec.get(j) + (oldVariablePartLength - newVariablePartLength));
+					}
+					map.put(i, vec);
+				}
+				// shift right the other records
+				System.arraycopy(this.data, offsetEnd, this.data,
+						offsetEnd + (oldVariablePartLength - newVariablePartLength), offset2 - offsetEnd + 1);
+				new_offset2 += oldVariablePartLength - newVariablePartLength;
+			}
+
+			// get the sum of the width of the fix sized attributes
+			Vector<Integer> new_offset_for_new_record = copy_record_to_given_location(slotNumber, record, new_offset2);
+			// update the hash map entry for new inserted record
+			map.put(slotNumber, new_offset_for_new_record);
 		}
 	}
 
@@ -107,23 +168,18 @@ public class RowPage extends AbstractPage {
 					if (!map.containsKey(numRecords)) {
 						Vector<Integer> v = new Vector<Integer>();
 						v.add(offsetEnd);
-						v.addElement(value.getVariableLength());
+						v.add(value.getVariableLength());
 						map.put(numRecords, v);
-					}
-					else {
+					} else {
 						Vector<Integer> v = map.get(numRecords);
 						v.add(offsetEnd);
 						v.add(value.getVariableLength());
 						map.put(numRecords, v);
 					}
-					
 					System.arraycopy(value.serialize(), 0, this.data, offsetEnd, value.getVariableLength());
 				}
-				
 			}
-			
 			numRecords++;
-			
 		}
 		return numRecords;
 	}
@@ -133,14 +189,9 @@ public class RowPage extends AbstractPage {
 		if (slotNumber >= numRecords || slotNumber < 0) {
 			throw new RuntimeException("Slot empty!");
 		} else {
-			
-			int fixedAttSize = 0;
-			for (AbstractSQLValue val : record.getValues()) {
-				if (val.isFixedLength()) {
-					fixedAttSize+=val.getFixedLength();
-				}
-			}
-			
+
+			int fixedAttSize = get_size_of_fix_part_of_record(record);
+
 			int offsetToFixSizeAttribute = slotNumber * fixedAttSize;
 			Vector<Integer> offsetVector = map.get(slotNumber);
 			int count = 0;
@@ -154,9 +205,9 @@ public class RowPage extends AbstractPage {
 					offsetToFixSizeAttribute += val.getFixedLength();
 				} else {
 					// read variable-sized attribute
-					byteData = new byte[offsetVector.get(count+1)];
-					System.arraycopy(this.data, offsetVector.get(count), byteData, 0, offsetVector.get(count+1));
-					count = count+2;
+					byteData = new byte[offsetVector.get(count + 1)];
+					System.arraycopy(this.data, offsetVector.get(count), byteData, 0, offsetVector.get(count + 1));
+					count = count + 2;
 				}
 				val.deserialize(byteData);
 			}
