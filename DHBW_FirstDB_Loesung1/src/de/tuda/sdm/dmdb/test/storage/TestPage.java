@@ -29,6 +29,11 @@ public class TestPage extends TestCase{
 		AbstractPage p = new RowPage(r1.getFixedLength());
 		p.insert(r1);
 		p.insert(r2);
+		AbstractRecord rx = new Record(3);
+		rx.setValue(0, new SQLInteger(536457474));
+		rx.setValue(1, new SQLVarchar("dsfh", 10));
+		rx.setValue(2, new SQLVarchar("dfgdgdg", 10));
+		p.insert(1,rx,false);
 		//read record
 		AbstractRecord r1cmp = new Record(3);
 		r1cmp.setValue(0, new SQLInteger());
@@ -44,7 +49,7 @@ public class TestPage extends TestCase{
 		p.read(1, r2cmp);
 		//compare
 		Assert.assertEquals(r1, r1cmp);
-		Assert.assertEquals(r2, r2cmp);
+		Assert.assertEquals(rx, r2cmp);
 		
 	}
 }

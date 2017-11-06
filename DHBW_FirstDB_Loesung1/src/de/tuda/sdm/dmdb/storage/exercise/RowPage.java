@@ -34,7 +34,60 @@ public class RowPage extends AbstractPage {
 				// insert new record
 			}
 		} else { // overwrite existing record
-
+			//Vector<Integer> v = new Vector<Integer>();
+			for (AbstractSQLValue value : record.getValues()) {
+				if (value.isFixedLength()) {
+					// copy the fixed-length part to begin of page
+					System.arraycopy(value.serialize(), 0, this.data, slotNumber*value.getFixedLength(), value.getFixedLength());
+				} else {
+				//	v.add(value.getVariableLength());
+					int a = record.getVariableLength();
+					int b = 0;
+					Vector<Integer> v = map.get(slotNumber);
+					int offset2 = v.get(v.size()-2);	// variable part of old record
+					for (int i = 1; i < v.size(); i= i+2) {
+						b+= v.get(i);
+					}
+					
+					int new_offset2 = offset2;
+					if (a>=b) {
+						for (int i = slotNumber+1; i < numRecords; i++) {
+							Vector<Integer> vec = map.get(i);
+							Vector<Integer> vecNew = new Vector<Integer>();
+							for (int j = 0; j < vec.size(); j = j+2) {
+								int x = vec.get(j);
+								vec.set(j, x - (a - b));
+							}
+						}
+						System.arraycopy(this.data, offsetEnd, this.data, offsetEnd - (a-b), offset2-offsetEnd+1);
+						new_offset2 -= a-b;
+					}
+					else {
+						for (int i = slotNumber+1; i < numRecords; i++) {
+							Vector<Integer> vec = map.get(i);
+							Vector<Integer> vecNew = new Vector<Integer>();
+							for (int j = 0; j < vec.size(); j = j+2) {
+								int x = vec.get(j);
+								vec.set(j, x + (b - a));
+							}
+						}
+						System.arraycopy(this.data, offsetEnd, this.data, offsetEnd + (b-a), offset2-offsetEnd+1);
+						new_offset2 += b-a;
+					}
+					//
+					int j = new_offset2;
+					Vector<Integer> new_offset_for_new_record = new Vector<Integer>();
+					int size = record.getValues().length;
+					for (int i = size-1; i >=0; i--){
+						System.arraycopy(record.getValue(i).serialize(), 0, this.data, j, record.getValue(i).getVariableLength());
+						new_offset_for_new_record.insertElementAt(j,0);
+						new_offset_for_new_record.insertElementAt(record.getValue(i).getVariableLength(),1);
+						j+=record.getValue(i).getVariableLength();
+					}
+					map.put(slotNumber, new_offset_for_new_record);
+				}
+				
+			}
 		}
 	}
 
