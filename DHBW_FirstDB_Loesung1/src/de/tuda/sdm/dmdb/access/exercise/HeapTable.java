@@ -34,7 +34,11 @@ public class HeapTable extends HeapTableBase {
 	public AbstractRecord lookup(int pageNumber, int slotNumber) {
 		AbstractPage ap = this.getPage(pageNumber);
 		AbstractRecord res = this.prototype.clone();
-		ap.read(slotNumber, res);	
+		try {
+			ap.read(slotNumber, res);	
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
 		return res;
 	}
 	
